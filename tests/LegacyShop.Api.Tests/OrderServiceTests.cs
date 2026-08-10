@@ -1,5 +1,6 @@
 using LegacyShop.Api.DTOs;
 using LegacyShop.Api.Models;
+using LegacyShop.Api.Pricing;
 using LegacyShop.Api.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -7,13 +8,21 @@ namespace LegacyShop.Api.Tests;
 
 public sealed class OrderServiceTests
 {
+    private static IPricingEngine CreatePricingEngine() =>
+        new PricingEngine(
+        [
+            new BulkQuantityDiscountStrategy(),
+            new MembershipDiscountStrategy()
+        ]);
+
     [Fact]
     public async Task CreateOrder_WhenCustomerDoesNotExist_ReturnsNotFound()
     {
         var repository = new FakeOrderRepository();
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {
@@ -53,7 +62,8 @@ public sealed class OrderServiceTests
 
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {
@@ -102,7 +112,8 @@ public sealed class OrderServiceTests
 
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {

@@ -1,5 +1,6 @@
 using LegacyShop.Api.Data;
 using LegacyShop.Api.Middleware;
+using LegacyShop.Api.Pricing;
 using LegacyShop.Api.Repositories;
 using LegacyShop.Api.Services;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,11 @@ builder.Services.AddDbContext<ShopDbContext>(options =>
         builder.Configuration.GetConnectionString("ShopDb")));
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+builder.Services.AddSingleton<IPricingStrategy, BulkQuantityDiscountStrategy>();
+builder.Services.AddSingleton<IPricingStrategy, MembershipDiscountStrategy>();
+builder.Services.AddSingleton<IPricingEngine, PricingEngine>();
+
 builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
