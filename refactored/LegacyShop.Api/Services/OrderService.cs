@@ -38,6 +38,11 @@ public sealed class OrderService(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (item.Quantity <= 0)
+            {
+                return Failure(400, "Quantity must be greater than zero.");
+            }
+
             var product = await repository.GetProductAsync(
                 item.ProductId,
                 cancellationToken);
