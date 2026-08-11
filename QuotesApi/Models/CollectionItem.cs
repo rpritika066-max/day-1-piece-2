@@ -4,12 +4,12 @@ public class CollectionItem
 {
     private CollectionItem() { } // EF Core
 
-    public CollectionItem(int quoteId)
+    public CollectionItem(int quoteId, DateTimeOffset addedAt)
     {
         QuoteId = quoteId;
-        AddedAt = DateTime.UtcNow;
+        AddedAt = addedAt;
     }
 
     public int QuoteId { get; private set; }
-    public DateTime AddedAt { get; private set; }
+    public DateTimeOffset AddedAt { get; private set; }
 }

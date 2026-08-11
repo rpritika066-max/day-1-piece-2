@@ -25,5 +25,5 @@ public sealed class CollectionResponse
 public sealed class CollectionItemResponse
 {
     public int QuoteId { get; init; }
-    public DateTime AddedAt { get; init; }
+    public DateTimeOffset AddedAt { get; init; }
 }

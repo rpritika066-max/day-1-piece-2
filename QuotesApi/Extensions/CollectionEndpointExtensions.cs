@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using QuotesApi.Models;
 using QuotesApi.Models.Dtos;
 using QuotesApi.Repositories;
+using QuotesApi.Services;
 
 namespace QuotesApi.Extensions;
 
@@ -84,6 +85,7 @@ public static class CollectionEndpointExtensions
             int id,
             AddItemRequest request,
             ICollectionRepository repository,
+            IClock clock,
             ILogger<Program> logger,
             CancellationToken cancellationToken) =>
         {
@@ -96,7 +98,7 @@ public static class CollectionEndpointExtensions
 
             try
             {
-                collection.AddItem(request.QuoteId);
+                collection.AddItem(request.QuoteId, clock.UtcNow);
 
                 await repository.UpdateAsync(
                     collection,
