@@ -10,6 +10,8 @@ namespace Quotes.Tests.Integration;
 
 public class AuthEndpointsTests : IntegrationTestBase
 {
+    public AuthEndpointsTests(DatabaseFixture fixture) : base(fixture) { }
+
     [Fact]
     public async Task Login_ValidCredentials_ReturnsOkWithTokens()
     {

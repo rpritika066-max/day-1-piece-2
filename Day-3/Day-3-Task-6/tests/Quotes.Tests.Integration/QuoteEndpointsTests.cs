@@ -12,6 +12,8 @@ namespace Quotes.Tests.Integration;
 
 public class QuoteEndpointsTests : IntegrationTestBase
 {
+    public QuoteEndpointsTests(DatabaseFixture fixture) : base(fixture) { }
+
     [Fact]
     public async Task GetQuotes_ReturnsOk()
     {

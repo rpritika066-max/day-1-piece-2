@@ -10,6 +10,8 @@ namespace Quotes.Tests.Integration;
 
 public class CollectionEndpointsTests : IntegrationTestBase
 {
+    public CollectionEndpointsTests(DatabaseFixture fixture) : base(fixture) { }
+
     [Fact]
     public async Task PostCollection_ValidRequest_ReturnsCreated()
     {

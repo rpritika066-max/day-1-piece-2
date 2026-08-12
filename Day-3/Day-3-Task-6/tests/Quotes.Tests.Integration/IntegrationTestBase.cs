@@ -10,16 +10,22 @@ using System.Threading.Tasks;
 using System;
 using System.Net.Http;
 
+using Xunit;
+using Microsoft.EntityFrameworkCore;
+
 namespace Quotes.Tests.Integration;
 
-public abstract class IntegrationTestBase : IDisposable
+[Collection("Database collection")]
+public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected readonly CustomWebApplicationFactory Factory;
     protected readonly HttpClient Client;
+    private readonly DatabaseFixture _fixture;
 
-    protected IntegrationTestBase()
+    public IntegrationTestBase(DatabaseFixture fixture)
     {
-        Factory = new CustomWebApplicationFactory();
+        _fixture = fixture;
+        Factory = new CustomWebApplicationFactory(fixture.ConnectionString);
         Client = Factory.CreateClient();
     }
 
@@ -28,6 +34,14 @@ public abstract class IntegrationTestBase : IDisposable
         var scope = Factory.Services.CreateScope();
         return scope.ServiceProvider.GetRequiredService<QuoteDbContext>();
     }
+
+    public async Task InitializeAsync()
+    {
+        using var db = GetDbContext();
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM CollectionItem; DELETE FROM Collections; DELETE FROM Quotes;");
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     public class LoginResponse
     {

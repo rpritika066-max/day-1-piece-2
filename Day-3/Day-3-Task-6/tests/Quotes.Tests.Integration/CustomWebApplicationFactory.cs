@@ -1,25 +1,25 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using QuotesApi.Data;
 using QuotesApi.Services;
 using System;
 using System.Linq;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Quotes.Tests.Integration;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private SqliteConnection _connection;
-    public IClock MockClock { get; } = Substitute.For<IClock>();
+    public IClock MockClock { get; }
+    private readonly string _connectionString;
 
-    public CustomWebApplicationFactory()
+    public CustomWebApplicationFactory(string connectionString)
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        MockClock = Substitute.For<IClock>();
+        _connectionString = connectionString;
         
         // Ensure standard time for tests, but keep it close to actual time so JWTs don't expire immediately.
         MockClock.UtcNow.Returns(DateTimeOffset.UtcNow);
@@ -49,10 +49,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Add IClock fake
             services.AddSingleton(MockClock);
 
-            // Add DbContext using an in-memory database for testing.
+            // Add QuoteDbContext using SQL Server.
             services.AddDbContext<QuoteDbContext>(options =>
             {
-                options.UseSqlite(_connection);
+                options.UseSqlServer(_connectionString);
             });
             
             // Build the service provider.
@@ -60,9 +60,5 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         });
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        _connection?.Dispose();
-    }
+
 }

@@ -17,10 +17,10 @@ public static class InfrastructureExtensions
         IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Quotes")
-            ?? "Data Source=quotes.db";
+            ?? "Server=localhost;Database=Quotes;User Id=sa;Password=Your_password123;TrustServerCertificate=True;";
 
         services.AddDbContext<QuoteDbContext>(options =>
-            options.UseSqlite(connectionString));
+            options.UseSqlServer(connectionString));
 
         services.AddScoped<IQuoteRepository, QuoteRepository>();
         services.AddScoped<ICollectionRepository, CollectionRepository>();
