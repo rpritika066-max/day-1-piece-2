@@ -61,6 +61,13 @@ public static class QuoteEndpointExtensions
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? string.Empty;
+
+            logger.LogInformation(
+                "Create quote request received for user {UserId}",
+                userId);
+
             var validationResults = new List<ValidationResult>();
             var validationContext = new ValidationContext(request);
 
@@ -70,6 +77,10 @@ public static class QuoteEndpointExtensions
                     validationResults,
                     validateAllProperties: true))
             {
+                logger.LogWarning(
+                    "Create quote validation failed for user {UserId}",
+                    userId);
+
                 var errors = validationResults
                     .GroupBy(x => x.MemberNames.FirstOrDefault() ?? string.Empty)
                     .ToDictionary(
@@ -80,23 +91,37 @@ public static class QuoteEndpointExtensions
                 return Results.ValidationProblem(errors);
             }
 
+            logger.LogInformation(
+                "Create quote validation passed for user {UserId}",
+                userId);
+
             var quote = new Quote
             {
                 Author = request.Author.Trim(),
                 Text = request.Text.Trim(),
-                UserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty
+                UserId = userId
             };
+
+            logger.LogInformation(
+                "Saving quote for user {UserId} with author {Author}",
+                userId,
+                quote.Author);
 
             var created = await repository.AddAsync(
                 quote,
                 cancellationToken);
 
             logger.LogInformation(
-                "Created quote {QuoteId} by {Author}",
-                created.Id,
-                created.Author);
+    "Created quote {QuoteId} for user {UserId}",
+    created.Id,
+    userId);
 
-            return Results.Created($"/api/quotes/{created.Id}", created);
+logger.LogInformation(
+    "Create quote request completed for user {UserId} with quote {QuoteId}",
+    userId,
+    created.Id);
+
+return Results.Created($"/api/quotes/{created.Id}", created);
         }).RequireAuthorization("can-edit-quotes");
 
         group.MapGet("/{id:int}", async (
@@ -105,7 +130,9 @@ public static class QuoteEndpointExtensions
             ILogger<Program> logger,
             CancellationToken cancellationToken) =>
         {
-            logger.LogInformation("Getting quote {QuoteId}", id);
+            logger.LogInformation(
+                "Getting quote {QuoteId}",
+                id);
 
             var quote = await repository.GetByIdAsync(
                 id,
@@ -124,7 +151,9 @@ public static class QuoteEndpointExtensions
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
         {
-            logger.LogInformation("Deleting quote {QuoteId}", id);
+            logger.LogInformation(
+                "Deleting quote {QuoteId}",
+                id);
 
             var quote = await repository.GetByIdAsync(
                 id,
@@ -133,7 +162,11 @@ public static class QuoteEndpointExtensions
             if (quote is null)
                 return Results.NotFound();
 
-            var authResult = await authorizationService.AuthorizeAsync(user, quote, "OwnerOnly");
+            var authResult = await authorizationService.AuthorizeAsync(
+                user,
+                quote,
+                "OwnerOnly");
+
             if (!authResult.Succeeded)
                 return Results.Forbid();
 
@@ -148,4 +181,4 @@ public static class QuoteEndpointExtensions
 
         return endpoints;
     }
-}
+}
