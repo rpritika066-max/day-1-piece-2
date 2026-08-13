@@ -3,29 +3,87 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**'
   pull_request:
     branches:
       - main
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: Day-3/Day-3-Task-7
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore
-        run: dotnet restore ./refactored/LegacyShop.Api/LegacyShop.Api.csproj
+      - name: Restore dependencies
+        run: |
+          dotnet restore QuotesApi/QuotesApi.csproj
+          dotnet restore tests/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj
+          dotnet restore tests/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj
+          dotnet restore tests/QuotesApi.Tests/QuotesApi.Tests.csproj
+          dotnet restore Tests.Domain/Tests.Domain.csproj
 
       - name: Build
-        run: dotnet build ./refactored/LegacyShop.Api/LegacyShop.Api.csproj --no-restore
+        run: dotnet build QuotesApi/QuotesApi.csproj --no-restore
+
+      - name: Build test projects
+        run: |
+          dotnet build tests/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-restore
+          dotnet build tests/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-restore
+          dotnet build tests/QuotesApi.Tests/QuotesApi.Tests.csproj --no-restore
+          dotnet build Tests.Domain/Tests.Domain.csproj --no-restore
 
       - name: Test
-        run: dotnet test ./tests/LegacyShop.Api.Tests/LegacyShop.Api.Tests.csproj --no-restore --verbosity normal
+        run: |
+          dotnet test tests/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+          dotnet test tests/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+          dotnet test tests/QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+          dotnet test Tests.Domain/Tests.Domain.csproj --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Check 70% coverage
+        shell: bash
+        run: |
+          reportgenerator \
+            "-reports:**/TestResults/**/coverage.cobertura.xml" \
+            "-targetdir:coverage-report" \
+            "-reporttypes:TextSummary"
+
+          cat coverage-report/Summary.txt
+
+          LINE_RATE=$(grep "Line coverage:" coverage-report/Summary.txt | head -1 | sed 's/[^0-9.]//g')
+
+          echo "Line coverage: ${LINE_RATE}%"
+
+          if awk "BEGIN {exit !($LINE_RATE < 70)}"; then
+            echo "Coverage is below the required 70%."
+            exit 1
+          fi
+
+          echo "Coverage requirement passed: ${LINE_RATE}% >= 70%"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: Day-3/Day-3-Task-7/**/TestResults/**/*.trx
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: Day-3/Day-3-Task-7/**/TestResults/**/coverage.cobertura.xml

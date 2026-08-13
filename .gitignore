@@ -1,14 +1,10 @@
-# .NET build output
-**/bin/
-**/obj/
+# Build output
+bin/
+obj/
 
-# SQLite database
-**/*.db
-**/*.db-shm
-**/*.db-wal
-
-# Visual Studio
+# Visual Studio / VS Code files
 .vs/
+.vscode/
 
 # User-specific files
 *.user
