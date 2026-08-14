@@ -18,7 +18,7 @@ public static class InfrastructureExtensions
         IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Quotes")
-            ?? "Data Source=quotes.db";
+            ?? "Data Source=/tmp/quotes.db";
 
         services.AddDbContext<QuoteDbContext>(options =>
             options.UseSqlite(connectionString)
