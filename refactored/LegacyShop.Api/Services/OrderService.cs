@@ -1,17 +1,15 @@
 using LegacyShop.Api.DTOs;
 using LegacyShop.Api.Models;
+using LegacyShop.Api.Pricing;
 using LegacyShop.Api.Repositories;
 
 namespace LegacyShop.Api.Services;
 
 public sealed class OrderService(
     IOrderRepository repository,
-    ILogger<OrderService> logger) : IOrderService
+    ILogger<OrderService> logger,
+    IPricingEngine pricingEngine) : IOrderService
 {
-    private const decimal GoldDiscount = 0.85m;
-    private const decimal SilverDiscount = 0.92m;
-    private const decimal Bulk10Discount = 0.90m;
-    private const decimal Bulk5Discount = 0.95m;
     private const decimal TaxRate = 0.0825m;
 
     public async Task<CreateOrderResult> CreateOrderAsync(
@@ -39,6 +37,11 @@ public sealed class OrderService(
         foreach (var item in request.Items)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (item.Quantity <= 0)
+            {
+                return Failure(400, "Quantity must be greater than zero.");
+            }
 
             var product = await repository.GetProductAsync(
                 item.ProductId,
@@ -71,7 +74,7 @@ await repository.SaveChangesAsync(cancellationToken);
                     $"Not enough stock for {product.Name}.");
             }
 
-            var linePrice = CalculateLinePrice(
+            var linePrice = pricingEngine.CalculateLinePrice(
                 product.Price,
                 item.Quantity,
                 customer.MembershipLevel);
@@ -209,34 +212,6 @@ await repository.SaveChangesAsync(cancellationToken);
             201,
             null,
             response);
-    }
-
-    private static decimal CalculateLinePrice(
-        decimal price,
-        int quantity,
-        string membershipLevel)
-    {
-        var linePrice = price * quantity;
-
-        if (quantity >= 10)
-        {
-            linePrice *= Bulk10Discount;
-        }
-        else if (quantity >= 5)
-        {
-            linePrice *= Bulk5Discount;
-        }
-
-        if (membershipLevel == "GOLD")
-        {
-            linePrice *= GoldDiscount;
-        }
-        else if (membershipLevel == "SILVER")
-        {
-            linePrice *= SilverDiscount;
-        }
-
-        return linePrice;
     }
 
     private static decimal CalculateShipping(decimal subtotal)

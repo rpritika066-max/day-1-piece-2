@@ -1,5 +1,6 @@
 using LegacyShop.Api.DTOs;
 using LegacyShop.Api.Models;
+using LegacyShop.Api.Pricing;
 using LegacyShop.Api.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -7,13 +8,21 @@ namespace LegacyShop.Api.Tests;
 
 public sealed class OrderServiceTests
 {
+    private static IPricingEngine CreatePricingEngine() =>
+        new PricingEngine(
+        [
+            new BulkQuantityDiscountStrategy(),
+            new MembershipDiscountStrategy()
+        ]);
+
     [Fact]
     public async Task CreateOrder_WhenCustomerDoesNotExist_ReturnsNotFound()
     {
         var repository = new FakeOrderRepository();
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {
@@ -53,7 +62,8 @@ public sealed class OrderServiceTests
 
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {
@@ -102,7 +112,8 @@ public sealed class OrderServiceTests
 
         var service = new OrderService(
             repository,
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
 
         var request = new CreateOrderRequest
         {
@@ -129,5 +140,161 @@ public sealed class OrderServiceTests
         Assert.Equal(50m, result.Response.Subtotal);
         Assert.Equal(4.99m, result.Response.Shipping);
         Assert.Equal(4.536675m, result.Response.Tax);
-        Assert.Equal(59.53m, result.Response.Total);   }
+        Assert.Equal(59.53m, result.Response.Total);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WhenQuantityIsNegative_ReturnsBadRequest()
+    {
+        var repository = new FakeOrderRepository();
+
+        repository.Customers.Add(new Customer
+        {
+            Id = 1,
+            Name = "Test Customer",
+            Status = "ACTIVE",
+            MembershipLevel = "BASIC"
+        });
+
+        repository.Products.Add(new Product
+        {
+            Id = 1,
+            Name = "Keyboard",
+            Price = 50m,
+            StockQty = 20,
+            IsDiscontinued = false
+        });
+
+        var service = new OrderService(
+            repository,
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
+
+        var request = new CreateOrderRequest
+        {
+            CustomerId = 1,
+            ShippingState = "CA",
+            Items =
+            [
+                new OrderItemRequest
+                {
+                    ProductId = 1,
+                    Quantity = -1
+                }
+            ]
+        };
+
+        var result = await service.CreateOrderAsync(
+            request,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Quantity must be greater than zero.", result.Error);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WhenQuantityIsZero_ReturnsBadRequest()
+    {
+        var repository = new FakeOrderRepository();
+
+        repository.Customers.Add(new Customer
+        {
+            Id = 1,
+            Name = "Test Customer",
+            Status = "ACTIVE",
+            MembershipLevel = "BASIC"
+        });
+
+        repository.Products.Add(new Product
+        {
+            Id = 1,
+            Name = "Keyboard",
+            Price = 50m,
+            StockQty = 20,
+            IsDiscontinued = false
+        });
+
+        var service = new OrderService(
+            repository,
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
+
+        var request = new CreateOrderRequest
+        {
+            CustomerId = 1,
+            ShippingState = "CA",
+            Items =
+            [
+                new OrderItemRequest
+                {
+                    ProductId = 1,
+                    Quantity = 0
+                }
+            ]
+        };
+
+        var result = await service.CreateOrderAsync(
+            request,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Quantity must be greater than zero.", result.Error);
+    }
+
+    // Test: validation rejects orders for discontinued products
+
+    [Fact]
+    public async Task CreateOrder_WhenProductIsDiscontinued_RecordsDiscontinuedHitAndCreatesOrder()
+    {
+        var repository = new FakeOrderRepository();
+
+        repository.Customers.Add(new Customer
+        {
+            Id = 1,
+            Name = "Test Customer",
+            Status = "ACTIVE",
+            MembershipLevel = "BASIC"
+        });
+
+        repository.Products.Add(new Product
+        {
+            Id = 1,
+            Name = "Keyboard",
+            Price = 50m,
+            StockQty = 20,
+            IsDiscontinued = true
+        });
+
+        var service = new OrderService(
+            repository,
+            NullLogger<OrderService>.Instance,
+            CreatePricingEngine());
+
+        var request = new CreateOrderRequest
+        {
+            CustomerId = 1,
+            ShippingState = "CA",
+            Items =
+            [
+                new OrderItemRequest
+                {
+                    ProductId = 1,
+                    Quantity = 1
+                }
+            ]
+        };
+
+        var result = await service.CreateOrderAsync(
+            request,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(201, result.StatusCode);
+        Assert.NotNull(result.Response);
+        Assert.Empty(result.Response.Items);
+        Assert.Single(repository.DiscontinuedHits);
+        Assert.Single(repository.Orders);
+    }
 }
