@@ -3,6 +3,7 @@ using QuotesApi.Data;
 using QuotesApi.Extensions;
 using QuotesApi.Middleware;
 
+using Azure.Monitor.OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -23,7 +24,8 @@ builder.Services.AddOpenTelemetry()
         metrics.AddAspNetCoreInstrumentation()
                .AddHttpClientInstrumentation()
                .AddConsoleExporter();
-    });
+    })
+    .UseAzureMonitorExporter();
 
 builder.Logging.AddOpenTelemetry(logging =>
 {
